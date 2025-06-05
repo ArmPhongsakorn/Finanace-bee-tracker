@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>บันทึกรายรับ-รายจ่าย</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="container">
+    <h1>บันทึกรายรับ-รายจ่ายของฉัน</h1>
+
+    <h2>เพิ่มรายการใหม่</h2>
+    <form id="transactionForm">
+        <label for="description">รายละเอียด:</label>
+        <input type="text" id="description" required>
+
+        <label for="amount">จำนวนเงิน:</label>
+        <input type="number" id="amount" step="0.01" required>
+
+        <label for="type">ประเภท:</label>
+        <select id="type" required>
+            <option value="รายรับ">รายรับ</option>
+            <option value="รายจ่าย">รายจ่าย</option>
+        </select>
+
+        <label for="date">วันที่:</label>
+        <input type="date" id="date" required>
+
+        <button type="submit">บันทึกรายการ</button>
+    </form>
+
+    <h2>รายการทั้งหมด</h2>
+    <table id="transactionTable">
+        <thead>
+        <tr>
+            <th>วันที่</th>
+            <th>รายละเอียด</th>
+            <th>ประเภท</th>
+            <th>จำนวนเงิน</th>
+            <th>ดำเนินการ</th>
+        </tr>
+        </thead>
+        <tbody>
+        </tbody>
+    </table>
+</div>
+
+<script>
+    const API_BASE_URL = '/api/transactions';
+    const transactionForm = document.getElementById('transactionForm');
+    const transactionTableBody = document.querySelector('#transactionTable tbody');
+
+    // Function to fetch and display transactions
+    async function fetchTransactions() {
+        try {
+            const response = await fetch(API_BASE_URL);
+            const transactions = await response.json();
+            renderTransactions(transactions);
+        } catch (error) {
+            console.error('Error fetching transactions:', error);
+        }
+    }
+
+    // Function to render transactions in the table
+    function renderTransactions(transactions) {
+        transactionTableBody.innerHTML = ''; // Clear existing rows
+        transactions.forEach(transaction => {
+            const row = transactionTableBody.insertRow();
+            const amountClass = transaction.type === 'รายรับ' ? 'income' : 'expense';
+            row.innerHTML = `
+                <td>${transaction.date}</td>
+                <td>${transaction.description}</td>
+                <td class="${amountClass}">${transaction.type}</td>
+                <td class="${amountClass}">${transaction.amount.toLocaleString()}</td>
+                <td class="action-buttons">
+                    <button class="edit" data-id="${transaction.id}">แก้ไข</button>
+                    <button class="delete" data-id="${transaction.id}">ลบ</button>
+                </td>
+            `;
+        });
+    }
+
+    // Handle form submission
+    transactionForm.addEventListener('submit', async (event) => {
+        event.preventDefault(); // Prevent default form submission
+
+        const description = document.getElementById('description').value;
+        const amount = parseFloat(document.getElementById('amount').value);
+        const type = document.getElementById('type').value;
+        const date = document.getElementById('date').value;
+
+        const newTransaction = {
+            description,
+            amount,
+            type,
+            date
+        };
+
+        try {
+            const response = await fetch(API_BASE_URL, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(newTransaction)
+            });
+
+            if (response.ok) {
+                alert('รายการบันทึกสำเร็จ!');
+                transactionForm.reset(); // Clear form
+                fetchTransactions(); // Refresh table
+            } else {
+                alert('เกิดข้อผิดพลาดในการบันทึกรายการ');
+            }
+        } catch (error) {
+            console.error('Error adding transaction:', error);
+            alert('เกิดข้อผิดพลาดในการบันทึกรายการ');
+        }
+    });
+
+    // Handle edit and delete actions
+    transactionTableBody.addEventListener('click', async (event) => {
+        if (event.target.classList.contains('delete')) {
+            const id = event.target.dataset.id;
+            if (confirm('คุณต้องการลบรายการนี้หรือไม่?')) {
+                try {
+                    const response = await fetch(`${API_BASE_URL}/${id}`, {
+                        method: 'DELETE'
+                    });
+                    if (response.ok) {
+                        alert('ลบรายการสำเร็จ!');
+                        fetchTransactions(); // Refresh table
+                    } else {
+                        alert('เกิดข้อผิดพลาดในการลบรายการ');
+                    }
+                } catch (error) {
+                    console.error('Error deleting transaction:', error);
+                    alert('เกิดข้อผิดพลาดในการลบรายการ');
+                }
+            }
+        } else if (event.target.classList.contains('edit')) {
+            const id = event.target.dataset.id;
+            // For simplicity, we'll implement a basic prompt for editing.
+            // A better UI would involve populating the form fields.
+            const currentDescription = event.target.closest('tr').children[1].innerText;
+            const currentAmount = event.target.closest('tr').children[3].innerText.replace(/,/g, ''); // Remove commas for parsing
+            const currentType = event.target.closest('tr').children[2].innerText;
+            const currentDate = event.target.closest('tr').children[0].innerText;
+
+
+            const newDescription = prompt('แก้ไขรายละเอียด:', currentDescription);
+            if (newDescription === null) return; // User cancelled
+
+            const newAmountStr = prompt('แก้ไขจำนวนเงิน:', currentAmount);
+            if (newAmountStr === null) return; // User cancelled
+            const newAmount = parseFloat(newAmountStr);
+            if (isNaN(newAmount)) {
+                alert('จำนวนเงินไม่ถูกต้อง');
+                return;
+            }
+
+            const newType = prompt('แก้ไขประเภท (รายรับ/รายจ่าย):', currentType);
+            if (newType === null || (newType !== 'รายรับ' && newType !== 'รายจ่าย')) {
+                alert('ประเภทไม่ถูกต้อง ต้องเป็น "รายรับ" หรือ "รายจ่าย"');
+                return;
+            }
+
+            const newDate = prompt('แก้ไขวันที่ (YYYY-MM-DD):', currentDate);
+            if (newDate === null || !/^\d{4}-\d{2}-\d{2}$/.test(newDate)) {
+                alert('รูปแบบวันที่ไม่ถูกต้อง (YYYY-MM-DD)');
+                return;
+            }
+
+
+            const updatedTransaction = {
+                id: id, // Include ID for the PUT request
+                description: newDescription,
+                amount: newAmount,
+                type: newType,
+                date: newDate
+            };
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/${id}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(updatedTransaction)
+                });
+
+                if (response.ok) {
+                    alert('แก้ไขรายการสำเร็จ!');
+                    fetchTransactions(); // Refresh table
+                } else {
+                    alert('เกิดข้อผิดพลาดในการแก้ไขรายการ');
+                }
+            } catch (error) {
+                console.error('Error updating transaction:', error);
+                alert('เกิดข้อผิดพลาดในการแก้ไขรายการ');
+            }
+        }
+    });
+
+
+    // Initial load of transactions when the page loads
+    document.addEventListener('DOMContentLoaded', fetchTransactions);
+</script>
+</body>
+</html>
