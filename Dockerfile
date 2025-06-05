@@ -1,12 +1,18 @@
 # Stage 1: Build the Spring Boot application using Maven
-FROM maven:3.9.5-amazoncorretto-17 AS build # Use Maven image Java version 17
+# Use Maven image Java version 17
+FROM maven:3.9.5-amazoncorretto-17 AS build
 WORKDIR /app
 COPY . .
-RUN mvn clean package -DskipTests # Build JAR file, skip tests for deployment
+# Build JAR file, skip tests for deployment
+RUN mvn clean package -DskipTests
 
 # Stage 2: Create the final image with JRE
-FROM amazoncorretto:17-alpine-jdk # Use JRE-only image inorder small and secure of image
+# Use JRE-only image inorder small and secure of image
+FROM amazoncorretto:17-alpine-jdk
 WORKDIR /app
-COPY --from=build /app/target/*.jar app.jar # copy JAR file from Stage 1
-EXPOSE 8080 # Set port at Spring Boot App (default 8080)
-ENTRYPOINT ["java", "-jar", "app.jar"] # Command for run JAR files
+# copy JAR file from Stage 1
+COPY --from=build /app/target/*.jar app.jar
+# Set port at Spring Boot App (default 8080)
+EXPOSE 8080
+# Command for run JAR files
+ENTRYPOINT ["java", "-jar", "app.jar"]
