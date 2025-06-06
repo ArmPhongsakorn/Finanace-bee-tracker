@@ -17,6 +17,12 @@ public class TransactionController {
     @Autowired // let spring auto-injection instance for TransactionRepository
     private TransactionRepository transactionRepository;
 
+    // GET ALL Data
+    @GetMapping
+    public List<Transaction> getAllTransactions() {
+        return transactionRepository.findAll();
+    }
+
     // GET transaction by ID
     @GetMapping("/{id}")
     public ResponseEntity<Transaction> getTransactionById(@PathVariable Long id) {
